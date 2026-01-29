@@ -125,7 +125,6 @@ class DatabaseManager:
                 DetectionAnalytics.session_id == session_id
             ).order_by(DetectionAnalytics.id.desc()).all()
 
-            # Convert to list of dicts
             result = []
             for record in records:
                 result.append({

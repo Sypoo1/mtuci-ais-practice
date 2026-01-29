@@ -24,7 +24,6 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
     elements = []
     styles = getSampleStyleSheet()
 
-    # Title
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
@@ -36,7 +35,6 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
     title = Paragraph("MTUCI Shop Detector<br/>Analytics Report", title_style)
     elements.append(title)
 
-    # Session info
     info_style = styles['Normal']
     info_text = f"<b>Session ID:</b> {session_id}<br/><b>Generated:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br/><b>Total Records:</b> {len(session_data)}"
     info = Paragraph(info_text, info_style)
@@ -47,7 +45,6 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
         no_data = Paragraph("<b>No analytics data found for this session.</b>", styles['Normal'])
         elements.append(no_data)
     else:
-        # Summary statistics
         total_images = sum(1 for r in session_data if r['file_type'] == 'image')
         total_videos = sum(1 for r in session_data if r['file_type'] == 'video')
 
@@ -56,12 +53,10 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
         elements.append(summary)
         elements.append(Spacer(1, 0.3*inch))
 
-        # Table header
         table_title = Paragraph("<b>Detection Records</b>", styles['Heading2'])
         elements.append(table_title)
         elements.append(Spacer(1, 0.2*inch))
 
-        # Prepare table data
         table_data = [['#', 'File', 'Type', 'Count', 'Min', 'Max', 'Avg', 'Conf', 'IoU', 'Model']]
 
         for idx, record in enumerate(session_data, 1):
@@ -81,7 +76,7 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
                     iou_val,
                     record['model_name'][:8] if record['model_name'] else '-'
                 ]
-            else:  # video
+            else:
                 row = [
                     str(idx),
                     record['file_name'][:15] + '...' if len(record['file_name']) > 15 else record['file_name'],
@@ -96,10 +91,8 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
                 ]
             table_data.append(row)
 
-        # Create table
         table = Table(table_data, colWidths=[0.4*inch, 1.3*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.8*inch])
 
-        # Table style
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#111F68')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -115,7 +108,6 @@ def generate_pdf_report(session_data: list, session_id: str) -> BytesIO:
 
         elements.append(table)
 
-    # Build PDF
     doc.build(elements)
     buffer.seek(0)
     return buffer

@@ -95,7 +95,7 @@ class Inference:
     def web_ui(self) -> None:
         """Set up the Streamlit web interface with custom HTML elements."""
         menu_style_cfg = (
-            """<style>MainMenu {visibility: hidden;}</style>"""  # Hide main menu style
+            """<style>MainMenu {visibility: hidden;}</style>"""
         )
 
         # Main title of streamlit application
@@ -106,7 +106,7 @@ class Inference:
         sub_title_cfg = """<div><h5 style="color:#042AFF; text-align:center; font-family: 'Archivo', sans-serif;
         margin-top:-15px; margin-bottom:50px;">Real-time person detection system for webcam, video, and image analysis</h5></div>"""
 
-        # Set html page configuration and append custom HTML
+
         self.st.set_page_config(
             page_title="MTUCI Shop Detector Streamlit App", layout="wide"
         )
@@ -116,8 +116,8 @@ class Inference:
 
     def sidebar(self) -> None:
         """Configure the Streamlit sidebar for model and inference settings."""
-        with self.st.sidebar:  # Add MTUCI Shop Detector LOGO
-            # Create SVG logo with heptagon (7-sided polygon)
+        with self.st.sidebar:
+
             logo_svg = """
             <svg width="250" height="100" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -141,35 +141,35 @@ class Inference:
 
         self.st.sidebar.title(
             "User Configuration"
-        )  # Add elements to vertical setting menu
+        )
         self.source = self.st.sidebar.selectbox(
             "Source",
             ("webcam", "video", "image"),
-        )  # Add source selection dropdown
+        )
         if self.source in ["webcam", "video"]:
             self.enable_trk = (
                 self.st.sidebar.radio("Enable Tracking", ("Yes", "No")) == "Yes"
-            )  # Enable object tracking
+            )
         self.conf = float(
             self.st.sidebar.slider("Confidence Threshold", 0.0, 1.0, self.conf, 0.05)
-        )  # Slider for confidence
+        )
         self.iou = float(
             self.st.sidebar.slider("IoU Threshold", 0.0, 1.0, self.iou, 0.05)
-        )  # Slider for NMS threshold
+        )
 
-        # Add download report button
+
         if self.st.sidebar.button("📊 Download Analytics Report"):
             self.generate_report()
 
-        if self.source != "image":  # Only create columns for video/webcam
-            col1, col2 = self.st.columns(2)  # Create two columns for displaying frames
-            self.org_frame = col1.empty()  # Container for original frame
-            self.ann_frame = col2.empty()  # Container for annotated frame
-            self.person_counter = self.st.empty()  # Container for person counter
+        if self.source != "image":
+            col1, col2 = self.st.columns(2)
+            self.org_frame = col1.empty()
+            self.ann_frame = col2.empty()
+            self.person_counter = self.st.empty()
 
     def source_upload(self) -> None:
         """Handle video file uploads through the Streamlit interface."""
-        from ultralytics.data.utils import IMG_FORMATS, VID_FORMATS  # scope import
+        from ultralytics.data.utils import IMG_FORMATS, VID_FORMATS
 
         self.vid_file_name = ""
         if self.source == "video":
@@ -177,21 +177,21 @@ class Inference:
                 "Upload Video File", type=VID_FORMATS
             )
             if vid_file is not None:
-                g = io.BytesIO(vid_file.read())  # BytesIO Object
+                g = io.BytesIO(vid_file.read())
                 with open(
                     "ultralytics.mp4", "wb"
-                ) as out:  # Open temporary file as bytes
-                    out.write(g.read())  # Read bytes into file
+                ) as out:
+                    out.write(g.read())
                 self.vid_file_name = "ultralytics.mp4"
         elif self.source == "webcam":
-            self.vid_file_name = 0  # Use webcam index 0
+            self.vid_file_name = 0
         elif self.source == "image":
-            import tempfile  # scope import
+            import tempfile
 
             if imgfiles := self.st.sidebar.file_uploader(
                 "Upload Image Files", type=IMG_FORMATS, accept_multiple_files=True
             ):
-                for imgfile in imgfiles:  # Save each uploaded image to a temporary file
+                for imgfile in imgfiles:
                     with tempfile.NamedTemporaryFile(
                         delete=False, suffix=f".{imgfile.name.split('.')[-1]}"
                     ) as tf:
@@ -202,16 +202,16 @@ class Inference:
 
     def configure(self) -> None:
         """Configure the model and load selected classes for inference."""
-        # Best models for person detection (balanced quality/size)
+
         best_models = ["YOLO11n", "YOLO11s", "YOLO11m"]
 
-        if self.model_path:  # Insert user provided custom model if available
+        if self.model_path:
             best_models.insert(0, self.model_path)
 
         selected_model = self.st.sidebar.selectbox(
             "Detection Model",
             best_models,
-            index=1,  # Default to YOLO11s (best balance)
+            index=1,
         )
 
         with self.st.spinner("Model is downloading..."):
@@ -220,15 +220,15 @@ class Inference:
             ) or any(fmt in selected_model for fmt in ("openvino_model", "rknn_model")):
                 model_path = selected_model
             else:
-                model_path = f"{selected_model.lower()}.pt"  # Default to .pt if no model provided during function call.
-            self.model = YOLO(model_path)  # Load the YOLO model
-            self.selected_model_name = selected_model  # Store model name for analytics
+                model_path = f"{selected_model.lower()}.pt"
+            self.model = YOLO(model_path)
+            self.selected_model_name = selected_model
             class_names = list(
                 self.model.names.values()
-            )  # Convert dictionary to list of class names
+            )
         self.st.success("Model loaded successfully!")
 
-        # Set to detect only 'person' class
+
         if "person" in class_names:
             self.selected_ind = [class_names.index("person")]
             self.st.sidebar.info("Detecting: Person")
@@ -242,7 +242,7 @@ class Inference:
         """Perform inference on uploaded images."""
         for img_info in self.img_file_names:
             img_path = img_info["path"]
-            image = cv2.imread(img_path)  # Load and display the original image
+            image = cv2.imread(img_path)
             if image is not None:
                 self.st.markdown(f"#### Processed: {img_info['name']}")
                 col1, col2 = self.st.columns(2)
@@ -253,7 +253,7 @@ class Inference:
                 )
                 annotated_image = results[0].plot()
 
-                # Count detected persons
+
                 person_count = len(results[0].boxes)
 
                 with col2:
@@ -261,10 +261,8 @@ class Inference:
                         annotated_image, channels="BGR", caption="Predicted Image"
                     )
 
-                # Display person counter
                 self.st.markdown(f"### Detected Persons: **{person_count}**")
 
-                # Save analytics to database
                 if self.db and self.db.connected:
                     session_id = self.st.session_state.get("session_id", "unknown")
                     self.db.save_image_analytics(
@@ -276,10 +274,10 @@ class Inference:
                         model_name=self.selected_model_name or "unknown",
                     )
 
-                try:  # Clean up temporary file
+                try:
                     os.unlink(img_path)
                 except FileNotFoundError:
-                    pass  # File doesn't exist, ignore
+                    pass
             else:
                 self.st.error("Could not load the uploaded image.")
 
@@ -292,7 +290,7 @@ class Inference:
         session_id = self.st.session_state.get("session_id", "unknown")
 
         with self.st.spinner("Generating report..."):
-            # Get session data
+
             session_data = self.db.get_session_analytics(str(session_id))
 
             if not session_data:
@@ -301,11 +299,11 @@ class Inference:
                 )
                 return
 
-            # Generate PDF
+
             try:
                 pdf_buffer = generate_pdf_report(session_data, str(session_id))
 
-                # Offer download
+
                 self.st.download_button(
                     label="📥 Download PDF Report",
                     data=pdf_buffer,
@@ -320,10 +318,10 @@ class Inference:
 
     def inference(self) -> None:
         """Perform real-time object detection inference on video or webcam feed."""
-        self.web_ui()  # Initialize the web interface
-        self.sidebar()  # Create the sidebar
-        self.source_upload()  # Upload the video source
-        self.configure()  # Configure the app
+        self.web_ui()
+        self.sidebar()
+        self.source_upload()
+        self.configure()
 
         if self.st.sidebar.button("Start"):
             if self.source == "image":
@@ -333,13 +331,13 @@ class Inference:
                     self.st.info("Please upload an image file.")
                 return
 
-            stop_button = self.st.sidebar.button("Stop")  # Button to stop the inference
-            cap = cv2.VideoCapture(self.vid_file_name)  # Capture the video
+            stop_button = self.st.sidebar.button("Stop")
+            cap = cv2.VideoCapture(self.vid_file_name)
             if not cap.isOpened():
                 self.st.error("Could not open webcam or video source.")
                 return
 
-            person_counts = []  # Track person counts for video analytics
+            person_counts = []
 
             while cap.isOpened():
                 success, frame = cap.read()
@@ -352,7 +350,7 @@ class Inference:
                         )
                     break
 
-                # Process frame with model
+
                 if self.enable_trk:
                     results = self.model.track(
                         frame,
@@ -366,16 +364,16 @@ class Inference:
                         frame, conf=self.conf, iou=self.iou, classes=self.selected_ind
                     )
 
-                annotated_frame = results[0].plot()  # Add annotations on frame
+                annotated_frame = results[0].plot()
 
-                # Count detected persons
+
                 person_count = len(results[0].boxes)
-                person_counts.append(person_count)  # Track for analytics
+                person_counts.append(person_count)
 
                 if stop_button:
-                    cap.release()  # Release the capture
+                    cap.release()
 
-                    # Save video analytics before stopping
+
                     if self.db and self.db.connected and person_counts:
                         session_id = self.st.session_state.get("session_id", "unknown")
                         file_name = (
@@ -392,16 +390,16 @@ class Inference:
                             model_name=self.selected_model_name or "unknown",
                         )
 
-                    self.st.stop()  # Stop streamlit app
+                    self.st.stop()
 
                 self.org_frame.image(
                     frame, channels="BGR", caption="Original Frame"
-                )  # Display original frame
+                )
                 self.ann_frame.image(
                     annotated_frame, channels="BGR", caption="Predicted Frame"
-                )  # Display processed
+                )
 
-                # Display person counter with statistics
+
                 if person_counts:
                     min_count = min(person_counts)
                     max_count = max(person_counts)
@@ -436,9 +434,9 @@ class Inference:
                         f"### Detected Persons: **{person_count}**"
                     )
 
-            cap.release()  # Release the capture
+            cap.release()
 
-            # Save video analytics after video ends
+
             if self.db and self.db.connected and person_counts:
                 session_id = self.st.session_state.get("session_id", "unknown")
                 file_name = (
@@ -453,16 +451,16 @@ class Inference:
                     model_name=self.selected_model_name or "unknown",
                 )
 
-        cv2.destroyAllWindows()  # Destroy all OpenCV windows
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    import sys  # Import the sys module for accessing command-line arguments
+    import sys
 
-    # Check if a model name is provided as a command-line argument
+
     args = len(sys.argv)
     model = (
         sys.argv[1] if args > 1 else None
-    )  # Assign first argument as the model name if provided
-    # Create an instance of the Inference class and run inference
+    )
+
     Inference(model=model).inference()
