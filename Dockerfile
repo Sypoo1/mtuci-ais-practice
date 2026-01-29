@@ -22,7 +22,7 @@ RUN pip install uv && \
     uv sync --frozen
 
 # Copy application files
-COPY main.py database.py database_schema.sql ./
+COPY main.py database.py database_schema.sql report_generator.py ./
 
 # Expose Streamlit port
 EXPOSE 8501

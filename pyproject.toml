@@ -8,6 +8,7 @@ dependencies = [
     "lap>=0.5.12",
     "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.1",
+    "reportlab>=4.2.5",
     "sqlalchemy>=2.0.46",
     "streamlit>=1.53.1",
     "ultralytics>=8.4.8",

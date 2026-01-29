@@ -115,6 +115,36 @@ class DatabaseManager:
             print(f"Error saving video analytics: {e}")
             self.session.rollback()
 
+    def get_session_analytics(self, session_id: str):
+        """Get all analytics for a specific session."""
+        if not self.connected:
+            return []
+
+        try:
+            records = self.session.query(DetectionAnalytics).filter(
+                DetectionAnalytics.session_id == session_id
+            ).order_by(DetectionAnalytics.id.desc()).all()
+
+            # Convert to list of dicts
+            result = []
+            for record in records:
+                result.append({
+                    'id': record.id,
+                    'file_name': record.file_name,
+                    'file_type': record.file_type,
+                    'person_count': record.person_count,
+                    'person_count_min': record.person_count_min,
+                    'person_count_max': record.person_count_max,
+                    'person_count_avg': record.person_count_avg,
+                    'confidence_threshold': record.confidence_threshold,
+                    'iou_threshold': record.iou_threshold,
+                    'model_name': record.model_name
+                })
+            return result
+        except Exception as e:
+            print(f"Error getting session analytics: {e}")
+            return []
+
     def close(self):
         """Close database session."""
         if self.session:
