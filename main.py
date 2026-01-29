@@ -346,8 +346,38 @@ class Inference:
                     annotated_frame, channels="BGR", caption="Predicted Frame"
                 )  # Display processed
 
-                # Display person counter
-                self.person_counter.markdown(f"### 👥 Detected Persons: **{person_count}**")
+                # Display person counter with statistics
+                if person_counts:
+                    min_count = min(person_counts)
+                    max_count = max(person_counts)
+                    avg_count = sum(person_counts) / len(person_counts)
+
+                    stats_html = f"""
+                    <div style="padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-top: 10px;">
+                        <h3 style="color: #111F68; margin-bottom: 15px;">📊 Detection Statistics</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <p style="color: #666; margin: 0; font-size: 14px;">Current</p>
+                                <p style="color: #042AFF; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">👥 {person_count}</p>
+                            </div>
+                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <p style="color: #666; margin: 0; font-size: 14px;">Average</p>
+                                <p style="color: #28a745; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">📈 {avg_count:.1f}</p>
+                            </div>
+                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <p style="color: #666; margin: 0; font-size: 14px;">Minimum</p>
+                                <p style="color: #17a2b8; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">📉 {min_count}</p>
+                            </div>
+                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <p style="color: #666; margin: 0; font-size: 14px;">Maximum</p>
+                                <p style="color: #dc3545; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">📊 {max_count}</p>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                    self.person_counter.markdown(stats_html, unsafe_allow_html=True)
+                else:
+                    self.person_counter.markdown(f"### 👥 Detected Persons: **{person_count}**")
 
             cap.release()  # Release the capture
 
