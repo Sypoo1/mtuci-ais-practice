@@ -9,5 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
-# env
+# PostgreSQL data
+pgdata/
+
+# Environment
 .env
+
+# Uploads
+uploads/
