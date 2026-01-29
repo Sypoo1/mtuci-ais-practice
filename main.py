@@ -20,7 +20,7 @@ TITLE_HTML = """<div><h1 style="color:#111F68; text-align:center; font-size:40px
 font-family: 'Archivo', sans-serif; margin-bottom:20px;">MTUCI Shop Detector</h1></div>"""
 
 SUBTITLE_HTML = """<div><h5 style="color:#042AFF; text-align:center; font-family: 'Archivo', sans-serif;
-margin-top:-15px; margin-bottom:50px;">Real-time person detection system for webcam, video, and image analysis</h5></div>"""
+margin-top:-15px; margin-bottom:50px;">Real-time person detection system for video and image analysis</h5></div>"""
 
 LOGO_SVG = """
 <svg width="250" height="100" xmlns="http://www.w3.org/2000/svg">
@@ -72,48 +72,14 @@ TEMP_VIDEO_FILE = "ultralytics.mp4"
 
 
 class Inference:
-    """A class to perform object detection, image classification, image segmentation and pose estimation inference.
+    """A class to perform object detection inference.
 
     This class provides functionalities for loading models, configuring settings, uploading video files, and performing
     real-time inference using Streamlit and MTUCI Shop Detector YOLO models.
-
-    Attributes:
-        st (module): Streamlit module for UI creation.
-        temp_dict (dict): Temporary dictionary to store the model path and other configuration.
-        model_path (str): Path to the loaded model.
-        model (YOLO): The YOLO model instance.
-        source (str): Selected video source (webcam or video file).
-        enable_trk (bool): Enable tracking option.
-        conf (float): Confidence threshold for detection.
-        iou (float): IoU threshold for non-maximum suppression.
-        org_frame (Any): Container for the original frame to be displayed.
-        ann_frame (Any): Container for the annotated frame to be displayed.
-        vid_file_name (str | int): Name of the uploaded video file or webcam index.
-        selected_ind (list[int]): List of selected class indices for detection.
-
-    Methods:
-        web_ui: Set up the Streamlit web interface with custom HTML elements.
-        sidebar: Configure the Streamlit sidebar for model and inference settings.
-        source_upload: Handle video file uploads through the Streamlit interface.
-        configure: Configure the model and load selected classes for inference.
-        inference: Perform real-time object detection inference.
-
-    Examples:
-        Create an Inference instance with a custom model
-        >>> inf = Inference(model="path/to/model.pt")
-        >>> inf.inference()
-
-        Create an Inference instance with default settings
-        >>> inf = Inference()
-        >>> inf.inference()
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        """Initialize the Inference class, checking Streamlit requirements and setting up the model path.
-
-        Args:
-            **kwargs (Any): Additional keyword arguments for model configuration.
-        """
+        """Initialize the Inference class."""
         check_requirements("streamlit>=1.29.0")
         import streamlit as st
 
@@ -135,23 +101,16 @@ class Inference:
         self.model_path = self.temp_dict.get("model")
 
         self._initialize_session()
-        print(f"Session ID: {self._get_session_id()}")
 
         # Initialize database in session_state to persist across reloads
         if "db" not in self.st.session_state:
             try:
                 self.st.session_state.db = DatabaseManager()
-                print(
-                    f"✅ Database initialized successfully: connected={self.st.session_state.db.connected}"
-                )
             except Exception as e:
-                print(f"❌ Database initialization failed: {e}")
+                print(f"Database initialization failed: {e}")
                 self.st.session_state.db = None
 
         self.db = self.st.session_state.db
-        print(
-            f"📊 Using database from session: connected={self.db.connected if self.db else False}"
-        )
 
         LOGGER.info(f"MTUCI Shop Detector Solutions: ✅ {self.temp_dict}")
 
@@ -183,9 +142,9 @@ class Inference:
         self.st.sidebar.title("User Configuration")
         self.source = self.st.sidebar.selectbox(
             "Source",
-            ("webcam", "video", "image"),
+            ("video", "image"),
         )
-        if self.source in ["webcam", "video"]:
+        if self.source == "video":
             self.enable_trk = (
                 self.st.sidebar.radio("Enable Tracking", ("Yes", "No")) == "Yes"
             )
@@ -221,9 +180,6 @@ class Inference:
                 with open(TEMP_VIDEO_FILE, "wb") as out:
                     out.write(video_bytes.read())
                 self.vid_file_name = TEMP_VIDEO_FILE
-        elif self.source == "webcam":
-            self.vid_file_name = 0
-            self.original_video_name = "webcam"
         elif self.source == "image":
             import tempfile
 
@@ -305,16 +261,9 @@ class Inference:
 
     def _save_image_analytics(self, file_name: str, person_count: int) -> None:
         """Save image analytics to database."""
-        if not self.db:
-            print("Database not initialized")
-            return
-        if not self.db.connected:
-            print("Database not connected")
+        if not self.db or not self.db.connected:
             return
 
-        print(
-            f"Saving image analytics: file={file_name}, count={person_count}, session={self._get_session_id()}"
-        )
         self.db.save_image_analytics(
             session_id=self._get_session_id(),
             file_name=file_name,
@@ -323,33 +272,12 @@ class Inference:
             iou=self.iou,
             model_name=self.selected_model_name or "unknown",
         )
-        print("Image analytics saved successfully")
 
     def _save_video_analytics(self, file_name: str, person_counts: list[int]) -> None:
         """Save video analytics to database."""
-        print(f"🎯 _save_video_analytics CALLED!")
-        print(f"   file_name: {file_name}")
-        print(f"   person_counts: {person_counts[:5] if person_counts else 'EMPTY'}")
-        print(f"   len(person_counts): {len(person_counts) if person_counts else 0}")
-        print(f"   self.db: {self.db}")
-        print(f"   self.db.connected: {self.db.connected if self.db else 'N/A'}")
-
-        if not self.db:
-            print("❌ Database not initialized")
-            return
-        if not self.db.connected:
-            print("❌ Database not connected")
-            return
-        if not person_counts:
-            print("❌ No person counts to save")
+        if not self.db or not self.db.connected or not person_counts:
             return
 
-        print(
-            f"✅ All checks passed! Calling db.save_video_analytics..."
-        )
-        print(
-            f"   Params: session={self._get_session_id()}, file={file_name}, counts={len(person_counts)}"
-        )
         self.db.save_video_analytics(
             session_id=self._get_session_id(),
             file_name=file_name,
@@ -358,7 +286,6 @@ class Inference:
             iou=self.iou,
             model_name=self.selected_model_name or "unknown",
         )
-        print("✅ Video analytics saved successfully")
 
     def generate_report(self) -> None:
         """Generate and download PDF report for current session."""
@@ -392,7 +319,7 @@ class Inference:
                 self.st.error(f"Error generating report: {e}")
 
     def inference(self) -> None:
-        """Perform real-time object detection inference on video or webcam feed."""
+        """Perform real-time object detection inference on video feed."""
         self.web_ui()
         self.sidebar()
         self.source_upload()
@@ -409,91 +336,55 @@ class Inference:
             stop_button = self.st.sidebar.button("Stop")
             cap = cv2.VideoCapture(self.vid_file_name)
             if not cap.isOpened():
-                self.st.error("Could not open webcam or video source.")
+                self.st.error("Could not open video source.")
                 return
 
-            # Initialize person_counts in session_state if not exists
-            if "person_counts" not in self.st.session_state:
-                self.st.session_state.person_counts = []
+            person_counts = []
 
-            person_counts = self.st.session_state.person_counts
+            while cap.isOpened():
+                success, frame = cap.read()
+                if not success:
+                    self.st.info("Video processing completed.")
+                    break
 
-            try:
-                while cap.isOpened():
-                    success, frame = cap.read()
-                    if not success:
-                        if self.source == "video":
-                            self.st.info("Video processing completed.")
-                        else:
-                            self.st.warning(
-                                "Failed to read frame from webcam. Please verify the webcam is connected properly."
-                            )
-                        break
-
-                    if self.enable_trk:
-                        results = self.model.track(
-                            frame,
-                            conf=self.conf,
-                            iou=self.iou,
-                            classes=self.selected_ind,
-                            persist=True,
-                        )
-                    else:
-                        results = self.model(
-                            frame,
-                            conf=self.conf,
-                            iou=self.iou,
-                            classes=self.selected_ind,
-                        )
-
-                    annotated_frame = results[0].plot()
-
-                    person_count = len(results[0].boxes)
-                    person_counts.append(person_count)
-                    self.st.session_state.person_counts = (
-                        person_counts  # Save to session
+                if self.enable_trk:
+                    results = self.model.track(
+                        frame,
+                        conf=self.conf,
+                        iou=self.iou,
+                        classes=self.selected_ind,
+                        persist=True,
+                    )
+                else:
+                    results = self.model(
+                        frame,
+                        conf=self.conf,
+                        iou=self.iou,
+                        classes=self.selected_ind,
                     )
 
-                    if stop_button:
-                        print(f"🛑 Stop button pressed, saving analytics...")
-                        file_name = self._get_video_file_name()
-                        self._save_video_analytics(file_name, person_counts)
-                        self.st.session_state.person_counts = []  # Clear after saving
-                        break
+                annotated_frame = results[0].plot()
+                person_count = len(results[0].boxes)
+                person_counts.append(person_count)
 
-                    self.org_frame.image(
-                        frame, channels="BGR", caption="Original Frame"
-                    )
-                    self.ann_frame.image(
-                        annotated_frame, channels="BGR", caption="Predicted Frame"
-                    )
+                if stop_button:
+                    break
 
-                    self._display_statistics(person_count, person_counts)
-            finally:
-                print(
-                    f"🔄 Finally block executing... person_counts length: {len(person_counts)}"
+                self.org_frame.image(frame, channels="BGR", caption="Original Frame")
+                self.ann_frame.image(
+                    annotated_frame, channels="BGR", caption="Predicted Frame"
                 )
-                cap.release()
-                # Only save if we have data and haven't saved yet (video ended naturally)
-                if person_counts and not stop_button:
-                    file_name = self._get_video_file_name()
-                    print(
-                        f"📝 Video ended naturally, saving analytics for: {file_name}"
-                    )
-                    self._save_video_analytics(file_name, person_counts)
-                    self.st.session_state.person_counts = []  # Clear after saving
-                    print(f"✅ Analytics saved, stopping Streamlit execution")
-                    import time
-                    time.sleep(0.5)  # Give time for DB commit
-                print(f"✅ Finally block completed")
+
+                self._display_statistics(person_count, person_counts)
+
+            cap.release()
+
+            # Save analytics after video processing
+            if person_counts:
+                file_name = self.original_video_name or "video"
+                self._save_video_analytics(file_name, person_counts)
 
         cv2.destroyAllWindows()
-
-    def _get_video_file_name(self) -> str:
-        """Get video file name for analytics."""
-        if self.original_video_name:
-            return self.original_video_name
-        return "webcam" if self.source == "webcam" else str(self.vid_file_name)
 
     def _display_statistics(self, current_count: int, person_counts: list[int]) -> None:
         """Display detection statistics."""

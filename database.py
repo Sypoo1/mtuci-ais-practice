@@ -95,7 +95,7 @@ class DatabaseManager:
         iou: float,
         model_name: str,
     ) -> None:
-        """Save analytics for video/webcam processing."""
+        """Save analytics for video processing."""
         if not self.connected or not self.session or not person_counts:
             return
 
