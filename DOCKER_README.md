@@ -38,7 +38,57 @@ docker-compose up -d
 
 Перейдите в браузере: http://localhost:8501
 
-## Управление
+## Локальная разработка (приложение локально + БД в Docker)
+
+Если вы хотите запустить приложение локально для разработки, но использовать базу данных в Docker:
+
+### 1. Запустите только базу данных
+
+```bash
+docker-compose -f docker-compose.db-only.yml up -d
+```
+
+### 2. Создайте .env файл (если еще не создан)
+
+```bash
+cp .env.example .env
+```
+
+Убедитесь, что в .env указан `DB_HOST=localhost`:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mtuci_shop_detector
+DB_USER=postgres
+DB_PASSWORD=postgres
+```
+
+### 3. Установите зависимости
+
+```bash
+uv sync
+```
+
+### 4. Запустите приложение локально
+
+```bash
+uv run streamlit run main.py
+```
+
+### 5. Откройте приложение
+
+http://localhost:8501
+
+### Остановка базы данных
+
+```bash
+docker-compose -f docker-compose.db-only.yml down
+```
+
+---
+
+## Управление (полный Docker)
 
 ### Остановить приложение
 ```bash

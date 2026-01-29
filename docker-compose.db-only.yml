@@ -1,0 +1,16 @@
+services:
+
+  db_postgres:
+    image: postgres:16-alpine
+    container_name: db_postgres
+    restart: on-failure
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./database_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_DB=${DB_NAME:-mtuci_shop_detector}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - TZ=Europe/Moscow
