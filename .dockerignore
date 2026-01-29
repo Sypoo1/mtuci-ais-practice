@@ -12,7 +12,6 @@ build
 .env
 pgdata
 postgres_data
-uploads
 *.mp4
 *.jpg
 *.png

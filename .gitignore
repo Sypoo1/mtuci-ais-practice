@@ -14,6 +14,3 @@ pgdata/
 
 # Environment
 .env
-
-# Uploads
-uploads/
