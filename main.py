@@ -14,6 +14,62 @@ from report_generator import generate_pdf_report
 
 torch.classes.__path__ = []
 
+MENU_STYLE = """<style>MainMenu {visibility: hidden;}</style>"""
+
+TITLE_HTML = """<div><h1 style="color:#111F68; text-align:center; font-size:40px; margin-top:-50px;
+font-family: 'Archivo', sans-serif; margin-bottom:20px;">MTUCI Shop Detector</h1></div>"""
+
+SUBTITLE_HTML = """<div><h5 style="color:#042AFF; text-align:center; font-family: 'Archivo', sans-serif;
+margin-top:-15px; margin-bottom:50px;">Real-time person detection system for webcam, video, and image analysis</h5></div>"""
+
+LOGO_SVG = """
+<svg width="250" height="100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#111F68;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#042AFF;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    <rect width="250" height="100" fill="url(#grad1)" rx="10"/>
+    <path d="M 125 15 L 145 25 L 150 42 L 140 57 L 110 57 L 100 42 L 105 25 Z"
+          fill="none" stroke="white" stroke-width="3.5"
+          stroke-linejoin="round" stroke-linecap="round"
+          style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));"/>
+    <text x="125" y="85" font-family="Arial, sans-serif" font-size="16"
+          font-weight="bold" fill="white" text-anchor="middle">
+        MTUCI Shop Detector
+    </text>
+</svg>
+"""
+
+STATS_CARD_TEMPLATE = """
+<div style="padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-top: 10px;">
+    <h3 style="color: #111F68; margin-bottom: 15px;">Detection Statistics</h3>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+        <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #666; margin: 0; font-size: 14px;">Current</p>
+            <p style="color: #042AFF; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{current}</p>
+        </div>
+        <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #666; margin: 0; font-size: 14px;">Average</p>
+            <p style="color: #28a745; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{average:.1f}</p>
+        </div>
+        <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #666; margin: 0; font-size: 14px;">Minimum</p>
+            <p style="color: #17a2b8; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{minimum}</p>
+        </div>
+        <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #666; margin: 0; font-size: 14px;">Maximum</p>
+            <p style="color: #dc3545; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{maximum}</p>
+        </div>
+    </div>
+</div>
+"""
+
+BEST_MODELS = ["YOLO11n", "YOLO11s", "YOLO11m"]
+DEFAULT_MODEL_INDEX = 1
+TEMP_VIDEO_FILE = "ultralytics.mp4"
+
 
 class Inference:
     """A class to perform object detection, image classification, image segmentation and pose estimation inference.
@@ -70,14 +126,13 @@ class Inference:
         self.org_frame = None
         self.ann_frame = None
         self.vid_file_name = None
+        self.original_video_name = None
         self.selected_ind: list[int] = []
         self.model = None
         self.selected_model_name = None
 
         self.temp_dict = {"model": None, **kwargs}
-        self.model_path = None
-        if self.temp_dict["model"] is not None:
-            self.model_path = self.temp_dict["model"]
+        self.model_path = self.temp_dict.get("model")
 
         try:
             self.db = DatabaseManager()
@@ -85,55 +140,34 @@ class Inference:
             print(f"Database initialization failed: {e}")
             self.db = None
 
+        self._initialize_session()
+
+        LOGGER.info(f"MTUCI Shop Detector Solutions: ✅ {self.temp_dict}")
+
+    def _initialize_session(self) -> None:
+        """Initialize session ID if not exists."""
         if "session_id" not in self.st.session_state:
             import uuid
 
             self.st.session_state["session_id"] = str(uuid.uuid4())
 
-        LOGGER.info(f"MTUCI Shop Detector Solutions: ✅ {self.temp_dict}")
+    def _get_session_id(self) -> str:
+        """Get current session ID."""
+        return self.st.session_state.get("session_id", "unknown")
 
     def web_ui(self) -> None:
         """Set up the Streamlit web interface with custom HTML elements."""
-        menu_style_cfg = """<style>MainMenu {visibility: hidden;}</style>"""
-
-        # Main title of streamlit application
-        main_title_cfg = """<div><h1 style="color:#111F68; text-align:center; font-size:40px; margin-top:-50px;
-        font-family: 'Archivo', sans-serif; margin-bottom:20px;">MTUCI Shop Detector</h1></div>"""
-
-        # Subtitle of streamlit application
-        sub_title_cfg = """<div><h5 style="color:#042AFF; text-align:center; font-family: 'Archivo', sans-serif;
-        margin-top:-15px; margin-bottom:50px;">Real-time person detection system for webcam, video, and image analysis</h5></div>"""
-
         self.st.set_page_config(
             page_title="MTUCI Shop Detector Streamlit App", layout="wide"
         )
-        self.st.markdown(menu_style_cfg, unsafe_allow_html=True)
-        self.st.markdown(main_title_cfg, unsafe_allow_html=True)
-        self.st.markdown(sub_title_cfg, unsafe_allow_html=True)
+        self.st.markdown(MENU_STYLE, unsafe_allow_html=True)
+        self.st.markdown(TITLE_HTML, unsafe_allow_html=True)
+        self.st.markdown(SUBTITLE_HTML, unsafe_allow_html=True)
 
     def sidebar(self) -> None:
         """Configure the Streamlit sidebar for model and inference settings."""
         with self.st.sidebar:
-            logo_svg = """
-            <svg width="250" height="100" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#111F68;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#042AFF;stop-opacity:1" />
-                    </linearGradient>
-                </defs>
-                <rect width="250" height="100" fill="url(#grad1)" rx="10"/>
-                <path d="M 125 15 L 145 25 L 150 42 L 140 57 L 110 57 L 100 42 L 105 25 Z"
-                      fill="none" stroke="white" stroke-width="3.5"
-                      stroke-linejoin="round" stroke-linecap="round"
-                      style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));"/>
-                <text x="125" y="85" font-family="Arial, sans-serif" font-size="16"
-                      font-weight="bold" fill="white" text-anchor="middle">
-                    MTUCI Shop Detector
-                </text>
-            </svg>
-            """
-            self.st.markdown(logo_svg, unsafe_allow_html=True)
+            self.st.markdown(LOGO_SVG, unsafe_allow_html=True)
 
         self.st.sidebar.title("User Configuration")
         self.source = self.st.sidebar.selectbox(
@@ -165,17 +199,20 @@ class Inference:
         from ultralytics.data.utils import IMG_FORMATS, VID_FORMATS
 
         self.vid_file_name = ""
+        self.original_video_name = None
         if self.source == "video":
             vid_file = self.st.sidebar.file_uploader(
                 "Upload Video File", type=VID_FORMATS
             )
             if vid_file is not None:
-                g = io.BytesIO(vid_file.read())
-                with open("ultralytics.mp4", "wb") as out:
-                    out.write(g.read())
-                self.vid_file_name = "ultralytics.mp4"
+                self.original_video_name = vid_file.name
+                video_bytes = io.BytesIO(vid_file.read())
+                with open(TEMP_VIDEO_FILE, "wb") as out:
+                    out.write(video_bytes.read())
+                self.vid_file_name = TEMP_VIDEO_FILE
         elif self.source == "webcam":
             self.vid_file_name = 0
+            self.original_video_name = "webcam"
         elif self.source == "image":
             import tempfile
 
@@ -193,16 +230,12 @@ class Inference:
 
     def configure(self) -> None:
         """Configure the model and load selected classes for inference."""
-
-        best_models = ["YOLO11n", "YOLO11s", "YOLO11m"]
-
+        models = BEST_MODELS.copy()
         if self.model_path:
-            best_models.insert(0, self.model_path)
+            models.insert(0, self.model_path)
 
         selected_model = self.st.sidebar.selectbox(
-            "Detection Model",
-            best_models,
-            index=1,
+            "Detection Model", models, index=DEFAULT_MODEL_INDEX
         )
 
         with self.st.spinner("Model is downloading..."):
@@ -250,16 +283,7 @@ class Inference:
 
                 self.st.markdown(f"### Detected Persons: **{person_count}**")
 
-                if self.db and self.db.connected:
-                    session_id = self.st.session_state.get("session_id", "unknown")
-                    self.db.save_image_analytics(
-                        session_id=str(session_id),
-                        file_name=img_info["name"],
-                        person_count=person_count,
-                        confidence=self.conf,
-                        iou=self.iou,
-                        model_name=self.selected_model_name or "unknown",
-                    )
+                self._save_image_analytics(img_info["name"], person_count)
 
                 try:
                     os.unlink(img_path)
@@ -268,16 +292,38 @@ class Inference:
             else:
                 self.st.error("Could not load the uploaded image.")
 
+    def _save_image_analytics(self, file_name: str, person_count: int) -> None:
+        """Save image analytics to database."""
+        if self.db and self.db.connected:
+            self.db.save_image_analytics(
+                session_id=self._get_session_id(),
+                file_name=file_name,
+                person_count=person_count,
+                confidence=self.conf,
+                iou=self.iou,
+                model_name=self.selected_model_name or "unknown",
+            )
+
+    def _save_video_analytics(self, file_name: str, person_counts: list[int]) -> None:
+        """Save video analytics to database."""
+        if self.db and self.db.connected and person_counts:
+            self.db.save_video_analytics(
+                session_id=self._get_session_id(),
+                file_name=file_name,
+                person_counts=person_counts,
+                confidence=self.conf,
+                iou=self.iou,
+                model_name=self.selected_model_name or "unknown",
+            )
+
     def generate_report(self) -> None:
         """Generate and download PDF report for current session."""
         if not self.db or not self.db.connected:
             self.st.error("Database not connected. Cannot generate report.")
             return
 
-        session_id = self.st.session_state.get("session_id", "unknown")
-
         with self.st.spinner("Generating report..."):
-            session_data = self.db.get_session_analytics(str(session_id))
+            session_data = self.db.get_session_analytics(self._get_session_id())
 
             if not session_data:
                 self.st.warning(
@@ -286,12 +332,13 @@ class Inference:
                 return
 
             try:
-                pdf_buffer = generate_pdf_report(session_data, str(session_id))
+                pdf_buffer = generate_pdf_report(session_data, self._get_session_id())
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
                 self.st.download_button(
                     label="📥 Download PDF Report",
                     data=pdf_buffer,
-                    file_name=f"mtuci_analytics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    file_name=f"mtuci_analytics_{timestamp}.pdf",
                     mime="application/pdf",
                 )
                 self.st.success(
@@ -354,23 +401,8 @@ class Inference:
 
                 if stop_button:
                     cap.release()
-
-                    if self.db and self.db.connected and person_counts:
-                        session_id = self.st.session_state.get("session_id", "unknown")
-                        file_name = (
-                            str(self.vid_file_name)
-                            if self.source == "video"
-                            else "webcam"
-                        )
-                        self.db.save_video_analytics(
-                            session_id=str(session_id),
-                            file_name=file_name,
-                            person_counts=person_counts,
-                            confidence=self.conf,
-                            iou=self.iou,
-                            model_name=self.selected_model_name or "unknown",
-                        )
-
+                    file_name = self.original_video_name or "webcam"
+                    self._save_video_analytics(file_name, person_counts)
                     self.st.stop()
 
                 self.org_frame.image(frame, channels="BGR", caption="Original Frame")
@@ -378,63 +410,35 @@ class Inference:
                     annotated_frame, channels="BGR", caption="Predicted Frame"
                 )
 
-                if person_counts:
-                    min_count = min(person_counts)
-                    max_count = max(person_counts)
-                    avg_count = sum(person_counts) / len(person_counts)
-
-                    stats_html = f"""
-                    <div style="padding: 20px; background-color: #f0f2f6; border-radius: 10px; margin-top: 10px;">
-                        <h3 style="color: #111F68; margin-bottom: 15px;">Detection Statistics</h3>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <p style="color: #666; margin: 0; font-size: 14px;">Current</p>
-                                <p style="color: #042AFF; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{person_count}</p>
-                            </div>
-                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <p style="color: #666; margin: 0; font-size: 14px;">Average</p>
-                                <p style="color: #28a745; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{avg_count:.1f}</p>
-                            </div>
-                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <p style="color: #666; margin: 0; font-size: 14px;">Minimum</p>
-                                <p style="color: #17a2b8; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{min_count}</p>
-                            </div>
-                            <div style="background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <p style="color: #666; margin: 0; font-size: 14px;">Maximum</p>
-                                <p style="color: #dc3545; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;">{max_count}</p>
-                            </div>
-                        </div>
-                    </div>
-                    """
-                    self.person_counter.markdown(stats_html, unsafe_allow_html=True)
-                else:
-                    self.person_counter.markdown(
-                        f"### Detected Persons: **{person_count}**"
-                    )
+                self._display_statistics(person_count, person_counts)
 
             cap.release()
-
-            if self.db and self.db.connected and person_counts:
-                session_id = self.st.session_state.get("session_id", "unknown")
-                file_name = (
-                    str(self.vid_file_name) if self.source == "video" else "webcam"
-                )
-                self.db.save_video_analytics(
-                    session_id=str(session_id),
-                    file_name=file_name,
-                    person_counts=person_counts,
-                    confidence=self.conf,
-                    iou=self.iou,
-                    model_name=self.selected_model_name or "unknown",
-                )
+            file_name = self.original_video_name or "webcam"
+            self._save_video_analytics(file_name, person_counts)
 
         cv2.destroyAllWindows()
 
+    def _display_statistics(self, current_count: int, person_counts: list[int]) -> None:
+        """Display detection statistics."""
+        if person_counts:
+            stats_html = STATS_CARD_TEMPLATE.format(
+                current=current_count,
+                average=sum(person_counts) / len(person_counts),
+                minimum=min(person_counts),
+                maximum=max(person_counts),
+            )
+            self.person_counter.markdown(stats_html, unsafe_allow_html=True)
+        else:
+            self.person_counter.markdown(f"### Detected Persons: **{current_count}**")
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Main entry point for the application."""
     import sys
 
-    args = len(sys.argv)
-    model = sys.argv[1] if args > 1 else None
-
+    model = sys.argv[1] if len(sys.argv) > 1 else None
     Inference(model=model).inference()
+
+
+if __name__ == "__main__":
+    main()
