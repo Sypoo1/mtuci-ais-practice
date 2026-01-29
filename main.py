@@ -94,9 +94,7 @@ class Inference:
 
     def web_ui(self) -> None:
         """Set up the Streamlit web interface with custom HTML elements."""
-        menu_style_cfg = (
-            """<style>MainMenu {visibility: hidden;}</style>"""
-        )
+        menu_style_cfg = """<style>MainMenu {visibility: hidden;}</style>"""
 
         # Main title of streamlit application
         main_title_cfg = """<div><h1 style="color:#111F68; text-align:center; font-size:40px; margin-top:-50px;
@@ -105,7 +103,6 @@ class Inference:
         # Subtitle of streamlit application
         sub_title_cfg = """<div><h5 style="color:#042AFF; text-align:center; font-family: 'Archivo', sans-serif;
         margin-top:-15px; margin-bottom:50px;">Real-time person detection system for webcam, video, and image analysis</h5></div>"""
-
 
         self.st.set_page_config(
             page_title="MTUCI Shop Detector Streamlit App", layout="wide"
@@ -117,7 +114,6 @@ class Inference:
     def sidebar(self) -> None:
         """Configure the Streamlit sidebar for model and inference settings."""
         with self.st.sidebar:
-
             logo_svg = """
             <svg width="250" height="100" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -139,9 +135,7 @@ class Inference:
             """
             self.st.markdown(logo_svg, unsafe_allow_html=True)
 
-        self.st.sidebar.title(
-            "User Configuration"
-        )
+        self.st.sidebar.title("User Configuration")
         self.source = self.st.sidebar.selectbox(
             "Source",
             ("webcam", "video", "image"),
@@ -156,7 +150,6 @@ class Inference:
         self.iou = float(
             self.st.sidebar.slider("IoU Threshold", 0.0, 1.0, self.iou, 0.05)
         )
-
 
         if self.st.sidebar.button("📊 Download Analytics Report"):
             self.generate_report()
@@ -178,9 +171,7 @@ class Inference:
             )
             if vid_file is not None:
                 g = io.BytesIO(vid_file.read())
-                with open(
-                    "ultralytics.mp4", "wb"
-                ) as out:
+                with open("ultralytics.mp4", "wb") as out:
                     out.write(g.read())
                 self.vid_file_name = "ultralytics.mp4"
         elif self.source == "webcam":
@@ -223,11 +214,8 @@ class Inference:
                 model_path = f"{selected_model.lower()}.pt"
             self.model = YOLO(model_path)
             self.selected_model_name = selected_model
-            class_names = list(
-                self.model.names.values()
-            )
+            class_names = list(self.model.names.values())
         self.st.success("Model loaded successfully!")
-
 
         if "person" in class_names:
             self.selected_ind = [class_names.index("person")]
@@ -252,7 +240,6 @@ class Inference:
                     image, conf=self.conf, iou=self.iou, classes=self.selected_ind
                 )
                 annotated_image = results[0].plot()
-
 
                 person_count = len(results[0].boxes)
 
@@ -290,7 +277,6 @@ class Inference:
         session_id = self.st.session_state.get("session_id", "unknown")
 
         with self.st.spinner("Generating report..."):
-
             session_data = self.db.get_session_analytics(str(session_id))
 
             if not session_data:
@@ -299,10 +285,8 @@ class Inference:
                 )
                 return
 
-
             try:
                 pdf_buffer = generate_pdf_report(session_data, str(session_id))
-
 
                 self.st.download_button(
                     label="📥 Download PDF Report",
@@ -350,7 +334,6 @@ class Inference:
                         )
                     break
 
-
                 if self.enable_trk:
                     results = self.model.track(
                         frame,
@@ -366,13 +349,11 @@ class Inference:
 
                 annotated_frame = results[0].plot()
 
-
                 person_count = len(results[0].boxes)
                 person_counts.append(person_count)
 
                 if stop_button:
                     cap.release()
-
 
                     if self.db and self.db.connected and person_counts:
                         session_id = self.st.session_state.get("session_id", "unknown")
@@ -392,13 +373,10 @@ class Inference:
 
                     self.st.stop()
 
-                self.org_frame.image(
-                    frame, channels="BGR", caption="Original Frame"
-                )
+                self.org_frame.image(frame, channels="BGR", caption="Original Frame")
                 self.ann_frame.image(
                     annotated_frame, channels="BGR", caption="Predicted Frame"
                 )
-
 
                 if person_counts:
                     min_count = min(person_counts)
@@ -436,7 +414,6 @@ class Inference:
 
             cap.release()
 
-
             if self.db and self.db.connected and person_counts:
                 session_id = self.st.session_state.get("session_id", "unknown")
                 file_name = (
@@ -457,10 +434,7 @@ class Inference:
 if __name__ == "__main__":
     import sys
 
-
     args = len(sys.argv)
-    model = (
-        sys.argv[1] if args > 1 else None
-    )
+    model = sys.argv[1] if args > 1 else None
 
     Inference(model=model).inference()
