@@ -10,9 +10,9 @@ services:
       - ./postgres_data:/var/lib/postgresql/data
       - ./database_schema.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
-      - POSTGRES_DB=mtuci_shop_detector
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=${DB_NAME:-mtuci_shop_detector}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
       - TZ=Europe/Moscow
     networks:
       shopnet:
@@ -28,10 +28,10 @@ services:
       - db_postgres
     environment:
       - DB_HOST=db_postgres
-      - DB_PORT=5432
-      - DB_NAME=mtuci_shop_detector
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-mtuci_shop_detector}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
     volumes:
       - ./uploads:/app/uploads
     networks:

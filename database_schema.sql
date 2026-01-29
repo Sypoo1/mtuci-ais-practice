@@ -1,6 +1,6 @@
 -- MTUCI Shop Detector Analytics Database Schema
 
-CREATE TABLE detection_analytics (
+CREATE TABLE IF NOT EXISTS detection_analytics (
     id SERIAL PRIMARY KEY,
     session_id VARCHAR(255),
     file_name VARCHAR(500),

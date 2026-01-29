@@ -21,7 +21,6 @@ RUN pip install uv && \
 
 # Copy application files
 COPY main.py database.py database_schema.sql ./
-COPY .env .env
 
 # Expose Streamlit port
 EXPOSE 8501

@@ -93,6 +93,11 @@ class Inference:
             print(f"Database initialization failed: {e}")
             self.db = None
 
+        # Initialize session_id if not exists
+        if 'session_id' not in self.st.session_state:
+            import uuid
+            self.st.session_state['session_id'] = str(uuid.uuid4())
+
         LOGGER.info(f"MTUCI Shop Detector Solutions: ✅ {self.temp_dict}")
 
     def web_ui(self) -> None:

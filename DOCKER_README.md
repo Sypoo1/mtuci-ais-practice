@@ -2,13 +2,29 @@
 
 ## Быстрый старт
 
-### 1. Установите зависимости (локально, если нужно)
+### 1. Создайте .env файл
+
+```bash
+cp .env.example .env
+```
+
+Отредактируйте .env с вашими настройками (по умолчанию можно оставить как есть):
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mtuci_shop_detector
+DB_USER=postgres
+DB_PASSWORD=postgres
+```
+
+### 2. Установите зависимости (локально, если нужно)
 
 ```bash
 uv add sqlalchemy psycopg2-binary python-dotenv
 ```
 
-### 2. Запустите приложение в Docker
+### 3. Запустите приложение в Docker
 
 ```bash
 docker-compose up -d
@@ -18,7 +34,7 @@ docker-compose up -d
 - PostgreSQL базу данных на порту 5432
 - Streamlit приложение на порту 8501
 
-### 3. Откройте приложение
+### 4. Откройте приложение
 
 Перейдите в браузере: http://localhost:8501
 
