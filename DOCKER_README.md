@@ -190,7 +190,90 @@ environment:
   - DB_PASSWORD=postgres
 ```
 
+## Настройка веб-камеры в Docker
+
+Для работы веб-камеры в Docker контейнере необходимо:
+
+### 1. Дать доступ к X11 серверу (для Linux/macOS)
+
+```bash
+xhost +local:docker
+```
+
+### 2. Перезапустить контейнер
+
+```bash
+docker-compose down
+docker-compose up -d --build
+```
+
+### 3. Проверить доступные видео-устройства
+
+```bash
+ls -la /dev/video*
+```
+
+Если у вас другие видео-устройства (например, `/dev/video2`), отредактируйте `docker-compose.yml`:
+
+```yaml
+devices:
+  - /dev/video0:/dev/video0
+  - /dev/video2:/dev/video2  # Добавьте ваше устройство
+```
+
+### Для macOS
+
+На macOS доступ к веб-камере из Docker ограничен. Рекомендуется запускать приложение локально:
+
+```bash
+# Запустите только БД в Docker
+docker-compose -f docker-compose.db-only.yml up -d
+
+# Запустите приложение локально
+uv run streamlit run main.py
+```
+
+### Для Windows
+
+На Windows с WSL2:
+
+1. Убедитесь, что WSL2 имеет доступ к камере
+2. Используйте WSLg для графических приложений
+3. Или запускайте приложение локально (см. выше)
+
+### Альтернатива: Использование видео-файлов
+
+Если веб-камера не работает, вы всегда можете использовать:
+- Загрузку видео-файлов через интерфейс
+- Загрузку изображений для анализа
+
 ## Troubleshooting
+
+### Веб-камера не работает в Docker
+
+**Ошибка:** "Could not open webcam or video source"
+
+**Решение 1:** Проверьте права доступа
+```bash
+# Дайте права на видео-устройства
+sudo chmod 666 /dev/video0
+sudo chmod 666 /dev/video1
+
+# Добавьте пользователя в группу video
+sudo usermod -aG video $USER
+```
+
+**Решение 2:** Запустите с правами root
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+**Решение 3:** Используйте локальный запуск
+```bash
+docker-compose -f docker-compose.db-only.yml up -d
+uv run streamlit run main.py
+```
 
 ### Порт 5432 уже занят
 Измените порт в `docker-compose.yml`:

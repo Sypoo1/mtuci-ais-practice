@@ -134,13 +134,24 @@ class Inference:
         self.temp_dict = {"model": None, **kwargs}
         self.model_path = self.temp_dict.get("model")
 
-        try:
-            self.db = DatabaseManager()
-        except Exception as e:
-            print(f"Database initialization failed: {e}")
-            self.db = None
-
         self._initialize_session()
+        print(f"Session ID: {self._get_session_id()}")
+
+        # Initialize database in session_state to persist across reloads
+        if "db" not in self.st.session_state:
+            try:
+                self.st.session_state.db = DatabaseManager()
+                print(
+                    f"✅ Database initialized successfully: connected={self.st.session_state.db.connected}"
+                )
+            except Exception as e:
+                print(f"❌ Database initialization failed: {e}")
+                self.st.session_state.db = None
+
+        self.db = self.st.session_state.db
+        print(
+            f"📊 Using database from session: connected={self.db.connected if self.db else False}"
+        )
 
         LOGGER.info(f"MTUCI Shop Detector Solutions: ✅ {self.temp_dict}")
 
@@ -294,27 +305,60 @@ class Inference:
 
     def _save_image_analytics(self, file_name: str, person_count: int) -> None:
         """Save image analytics to database."""
-        if self.db and self.db.connected:
-            self.db.save_image_analytics(
-                session_id=self._get_session_id(),
-                file_name=file_name,
-                person_count=person_count,
-                confidence=self.conf,
-                iou=self.iou,
-                model_name=self.selected_model_name or "unknown",
-            )
+        if not self.db:
+            print("Database not initialized")
+            return
+        if not self.db.connected:
+            print("Database not connected")
+            return
+
+        print(
+            f"Saving image analytics: file={file_name}, count={person_count}, session={self._get_session_id()}"
+        )
+        self.db.save_image_analytics(
+            session_id=self._get_session_id(),
+            file_name=file_name,
+            person_count=person_count,
+            confidence=self.conf,
+            iou=self.iou,
+            model_name=self.selected_model_name or "unknown",
+        )
+        print("Image analytics saved successfully")
 
     def _save_video_analytics(self, file_name: str, person_counts: list[int]) -> None:
         """Save video analytics to database."""
-        if self.db and self.db.connected and person_counts:
-            self.db.save_video_analytics(
-                session_id=self._get_session_id(),
-                file_name=file_name,
-                person_counts=person_counts,
-                confidence=self.conf,
-                iou=self.iou,
-                model_name=self.selected_model_name or "unknown",
-            )
+        print(f"🎯 _save_video_analytics CALLED!")
+        print(f"   file_name: {file_name}")
+        print(f"   person_counts: {person_counts[:5] if person_counts else 'EMPTY'}")
+        print(f"   len(person_counts): {len(person_counts) if person_counts else 0}")
+        print(f"   self.db: {self.db}")
+        print(f"   self.db.connected: {self.db.connected if self.db else 'N/A'}")
+
+        if not self.db:
+            print("❌ Database not initialized")
+            return
+        if not self.db.connected:
+            print("❌ Database not connected")
+            return
+        if not person_counts:
+            print("❌ No person counts to save")
+            return
+
+        print(
+            f"✅ All checks passed! Calling db.save_video_analytics..."
+        )
+        print(
+            f"   Params: session={self._get_session_id()}, file={file_name}, counts={len(person_counts)}"
+        )
+        self.db.save_video_analytics(
+            session_id=self._get_session_id(),
+            file_name=file_name,
+            person_counts=person_counts,
+            confidence=self.conf,
+            iou=self.iou,
+            model_name=self.selected_model_name or "unknown",
+        )
+        print("✅ Video analytics saved successfully")
 
     def generate_report(self) -> None:
         """Generate and download PDF report for current session."""
@@ -368,55 +412,88 @@ class Inference:
                 self.st.error("Could not open webcam or video source.")
                 return
 
-            person_counts = []
+            # Initialize person_counts in session_state if not exists
+            if "person_counts" not in self.st.session_state:
+                self.st.session_state.person_counts = []
 
-            while cap.isOpened():
-                success, frame = cap.read()
-                if not success:
-                    if self.source == "video":
-                        self.st.info("Video processing completed.")
-                    else:
-                        self.st.warning(
-                            "Failed to read frame from webcam. Please verify the webcam is connected properly."
+            person_counts = self.st.session_state.person_counts
+
+            try:
+                while cap.isOpened():
+                    success, frame = cap.read()
+                    if not success:
+                        if self.source == "video":
+                            self.st.info("Video processing completed.")
+                        else:
+                            self.st.warning(
+                                "Failed to read frame from webcam. Please verify the webcam is connected properly."
+                            )
+                        break
+
+                    if self.enable_trk:
+                        results = self.model.track(
+                            frame,
+                            conf=self.conf,
+                            iou=self.iou,
+                            classes=self.selected_ind,
+                            persist=True,
                         )
-                    break
+                    else:
+                        results = self.model(
+                            frame,
+                            conf=self.conf,
+                            iou=self.iou,
+                            classes=self.selected_ind,
+                        )
 
-                if self.enable_trk:
-                    results = self.model.track(
-                        frame,
-                        conf=self.conf,
-                        iou=self.iou,
-                        classes=self.selected_ind,
-                        persist=True,
+                    annotated_frame = results[0].plot()
+
+                    person_count = len(results[0].boxes)
+                    person_counts.append(person_count)
+                    self.st.session_state.person_counts = (
+                        person_counts  # Save to session
                     )
-                else:
-                    results = self.model(
-                        frame, conf=self.conf, iou=self.iou, classes=self.selected_ind
+
+                    if stop_button:
+                        print(f"🛑 Stop button pressed, saving analytics...")
+                        file_name = self._get_video_file_name()
+                        self._save_video_analytics(file_name, person_counts)
+                        self.st.session_state.person_counts = []  # Clear after saving
+                        break
+
+                    self.org_frame.image(
+                        frame, channels="BGR", caption="Original Frame"
+                    )
+                    self.ann_frame.image(
+                        annotated_frame, channels="BGR", caption="Predicted Frame"
                     )
 
-                annotated_frame = results[0].plot()
-
-                person_count = len(results[0].boxes)
-                person_counts.append(person_count)
-
-                if stop_button:
-                    cap.release()
-                    file_name = self.original_video_name or "webcam"
-                    self._save_video_analytics(file_name, person_counts)
-                    self.st.stop()
-
-                self.org_frame.image(frame, channels="BGR", caption="Original Frame")
-                self.ann_frame.image(
-                    annotated_frame, channels="BGR", caption="Predicted Frame"
+                    self._display_statistics(person_count, person_counts)
+            finally:
+                print(
+                    f"🔄 Finally block executing... person_counts length: {len(person_counts)}"
                 )
-
-                self._display_statistics(person_count, person_counts)
-
-            cap.release()
-            file_name = self.original_video_name or "webcam"
-            self._save_video_analytics(file_name, person_counts)
+                cap.release()
+                # Only save if we have data and haven't saved yet (video ended naturally)
+                if person_counts and not stop_button:
+                    file_name = self._get_video_file_name()
+                    print(
+                        f"📝 Video ended naturally, saving analytics for: {file_name}"
+                    )
+                    self._save_video_analytics(file_name, person_counts)
+                    self.st.session_state.person_counts = []  # Clear after saving
+                    print(f"✅ Analytics saved, stopping Streamlit execution")
+                    import time
+                    time.sleep(0.5)  # Give time for DB commit
+                print(f"✅ Finally block completed")
 
         cv2.destroyAllWindows()
+
+    def _get_video_file_name(self) -> str:
+        """Get video file name for analytics."""
+        if self.original_video_name:
+            return self.original_video_name
+        return "webcam" if self.source == "webcam" else str(self.vid_file_name)
 
     def _display_statistics(self, current_count: int, person_counts: list[int]) -> None:
         """Display detection statistics."""

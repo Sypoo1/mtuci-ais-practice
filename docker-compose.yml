@@ -27,12 +27,19 @@ services:
       - "8501:8501"
     depends_on:
       - db_postgres
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
     environment:
       - DB_HOST=db_postgres
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-mtuci_shop_detector}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DISPLAY=${DISPLAY:-:0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    privileged: true
     networks:
       shopnet:
         ipv4_address: 172.20.10.20

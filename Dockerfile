@@ -19,6 +19,7 @@ RUN pip install uv && \
     uv sync --frozen
 
 COPY main.py database.py database_schema.sql report_generator.py ./
+COPY .streamlit /app/.streamlit
 
 EXPOSE 8501
 
